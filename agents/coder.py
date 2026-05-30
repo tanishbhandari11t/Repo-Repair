@@ -206,20 +206,72 @@ Generate code changes to fix this issue."""),
             return state
     
     def _prepare_files_content(self, state: AgentState) -> str:
-        """Prepare file contents for LLM prompt."""
+        """Prepare file contents for LLM prompt with smart truncation to preserve token budget."""
         content_parts = []
         
-        for result in state.relevant_files[:5]:
+        # Limit to top 3 files instead of 5 to avoid prompt bloat
+        for result in state.relevant_files[:3]:
             file_path = result.file_path
             full_content = self.git_tool.get_file_content(
                 Path(state.repo_path),
                 file_path,
             )
             
-            if full_content:
+            if not full_content:
+                continue
+                
+            lines = full_content.splitlines()
+            total_lines = len(lines)
+            
+            # Thresholds: 400 lines or 16000 characters
+            if total_lines <= 400 and len(full_content) <= 16000:
                 content_parts.append(f"File: {file_path}\n```\n{full_content}\n```\n")
-        
+                continue
+                
+            # If the file is larger, we perform smart sliding window extraction around the search snippet
+            match_idx = -1
+            snippet = result.content.strip() if result.content else ""
+            
+            if snippet:
+                # Clean up the snippet for matching. Take the first non-empty line of the snippet
+                snippet_lines = [l.strip() for l in snippet.splitlines() if l.strip()]
+                target = snippet_lines[0] if snippet_lines else ""
+                
+                if len(target) >= 6:  # Only look for significant matches
+                    for idx, line in enumerate(lines):
+                        if target.lower() in line.lower():
+                            match_idx = idx
+                            break
+                            
+            if match_idx != -1:
+                # Extract a +/- 100 line window around the match
+                start_idx = max(0, match_idx - 100)
+                end_idx = min(total_lines, match_idx + 100)
+                
+                truncated_lines = []
+                if start_idx > 0:
+                    truncated_lines.append(f"// ... [TRUNCATED: Showing lines {start_idx + 1} to {end_idx} of {total_lines}. Preceding {start_idx} lines omitted to keep prompt size small] ...")
+                    
+                truncated_lines.extend(lines[start_idx:end_idx])
+                
+                if end_idx < total_lines:
+                    truncated_lines.append(f"// ... [TRUNCATED: Showing lines {start_idx + 1} to {end_idx} of {total_lines}. Remaining {total_lines - end_idx} lines omitted to keep prompt size small] ...")
+                    
+                truncated_content = "\n".join(truncated_lines)
+                logger.info(f"Smart truncated file '{file_path}' to lines {start_idx+1}-{end_idx} around search match (line {match_idx+1}).")
+            else:
+                # Fallback: Extract first 350 lines
+                limit = min(350, total_lines)
+                truncated_lines = lines[:limit]
+                if total_lines > limit:
+                    truncated_lines.append(f"// ... [TRUNCATED: File is too large ({total_lines} lines). First {limit} lines shown to keep prompt size small] ...")
+                truncated_content = "\n".join(truncated_lines)
+                logger.info(f"File '{file_path}' too large and no clear search match found. Showing first {limit} lines.")
+                
+            content_parts.append(f"File: {file_path} (Truncated)\n```\n{truncated_content}\n```\n")
+            
         return "\n".join(content_parts)
+
     
     def _parse_changes(self, content: str) -> list[CodeChange]:
         """Parse code changes from LLM response."""
