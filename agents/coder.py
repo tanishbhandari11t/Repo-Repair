@@ -24,10 +24,11 @@ Your task:
 4. Maintain code style and best practices
 
 CRITICAL RULES:
-- Only modify files that directly fix the issue
-- Keep changes under 300 lines total
-- Preserve existing code style
-- Ensure backwards compatibility
+- STRICT SCOPE CONTROL: Do exactly what the issue asks and NOTHING MORE. Do not refactor, reorganize, or rewrite unrelated code or documentation.
+- FORMATTING MATCH: If adding new entries, examples, or code, you MUST rigidly match the format, structure, and syntax of the surrounding file.
+- Only modify files that directly fix the issue.
+- Keep changes under 300 lines total.
+- Preserve existing code style and ensure backwards compatibility.
 - VERY IMPORTANT: The code in the ORIGINAL block MUST EXACTLY match the existing code in the file, including all whitespace and indentation!
 - NEVER truncate the NEW block. Write out all the code you want to replace the ORIGINAL block with.
 - For Markdown (.md) or configuration files, if you want to rewrite the entire file, leave the ORIGINAL block completely empty and put the full new content in the NEW block.
