@@ -89,16 +89,30 @@ class GitTool:
                 try:
                     repo = Repo(repo_path)
                     
-                    # 1. Enable sparse checkout
+                    # 1. Disable protectNTFS so Git checkout doesn't abort on invalid index paths
+                    repo.git.config("core.protectNTFS", "false")
+                    
+                    # 2. Enable sparse checkout
                     repo.git.config("core.sparseCheckout", "true")
                     
-                    # 2. Write patterns to .git/info/sparse-checkout
+                    # 3. Write patterns to .git/info/sparse-checkout
                     sparse_file = repo_path / ".git" / "info" / "sparse-checkout"
                     sparse_file.parent.mkdir(parents=True, exist_ok=True)
-                    # We exclude any path containing the offending trailing space target '9fa89f7 '
-                    sparse_file.write_text("/*\n!*9fa89f7*\n", encoding="utf-8")
                     
-                    # 3. Trigger manual checkout
+                    patterns = ["/*", "!*9fa89f7*"]
+                    import re
+                    match = re.search(r"invalid path ['\"]([^'\"]+)['\"]", err_msg)
+                    if match:
+                        invalid_path = match.group(1)
+                        patterns.append(f"!{invalid_path}")
+                        # Also if there's a trailing space in any directory of the path, exclude that directory pattern too
+                        for part in invalid_path.split("/"):
+                            if part.endswith(" "):
+                                patterns.append(f"!*{part.strip()}*")
+                    
+                    sparse_file.write_text("\n".join(patterns) + "\n", encoding="utf-8")
+                    
+                    # 4. Trigger manual checkout
                     logger.info("Retrying checkout with sparse exclusions...")
                     repo.git.checkout("-f", "HEAD")
                     logger.info("Successfully checked out repository working tree using sparse-checkout bypass!")
