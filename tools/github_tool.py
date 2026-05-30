@@ -26,6 +26,41 @@ class GitHubTool:
         self.token = token
         logger.info("GitHub tool initialized")
     
+    def get_user_login(self) -> str:
+        """Get the authenticated user's GitHub username."""
+        try:
+            return self.github.get_user().login
+        except Exception as e:
+            logger.error(f"Failed to get authenticated user login: {e}")
+            raise
+            
+    def fork_repository(self, owner: str, repo: str) -> tuple[str, str]:
+        """
+        Fork a repository to the authenticated user's namespace if not already owned.
+        
+        Returns:
+            Tuple of (fork_owner, fork_repo_name)
+        """
+        try:
+            user_login = self.get_user_login()
+            if owner.lower() == user_login.lower():
+                logger.info(f"Repository {owner}/{repo} is already owned by authenticated user. Skipping fork.")
+                return owner, repo
+                
+            original_repo = self.github.get_repo(f"{owner}/{repo}")
+            logger.info(f"Forking repository {owner}/{repo} to {user_login}/{repo}...")
+            
+            # Create fork
+            my_user = self.github.get_user()
+            forked_repo = my_user.create_fork(original_repo)
+            
+            logger.info(f"Successfully requested fork. Target: {forked_repo.owner.login}/{forked_repo.name}")
+            return forked_repo.owner.login, forked_repo.name
+            
+        except Exception as e:
+            logger.error(f"Failed to fork repository: {e}")
+            raise
+
     def get_issue(self, owner: str, repo: str, issue_number: int) -> Issue:
         """
         Fetch a GitHub issue.

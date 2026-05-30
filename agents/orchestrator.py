@@ -198,6 +198,16 @@ class Orchestrator:
             changed_files = self.git_tool.get_changed_files(repo_path)
             
             if not dry_run:
+                # Fork the repository first if not owned by user
+                fork_owner, fork_repo = self.github_tool.fork_repository(owner, repo)
+                
+                if fork_owner.lower() != owner.lower():
+                    logger.info(f"Using fork-first push strategy. Pointing local clone to fork: {fork_owner}/{fork_repo}")
+                    fork_url = f"https://github.com/{fork_owner}/{fork_repo}.git"
+                    from git import Repo as GitRepo
+                    git_repo = GitRepo(repo_path)
+                    git_repo.remotes.origin.set_url(fork_url)
+                
                 self.git_tool.push_branch(
                     repo_path,
                     final_state.branch_name,
@@ -206,12 +216,14 @@ class Orchestrator:
                 
                 pr_body = self._generate_pr_body(final_state)
                 
+                head_branch = f"{fork_owner}:{final_state.branch_name}" if fork_owner.lower() != owner.lower() else final_state.branch_name
+                
                 pr_url = self.github_tool.create_pull_request(
                     owner,
                     repo,
                     f"AI Suggested Fix for Issue #{issue_number}",
                     pr_body,
-                    final_state.branch_name,
+                    head_branch,
                     draft=True,
                 )
                 
