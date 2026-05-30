@@ -766,11 +766,13 @@ body {
     border-radius: 10px;
     padding: 1.15rem;
     transition: var(--transition);
+    cursor: pointer;
 }
 
 .job-item:hover {
     background: rgba(255, 255, 255, 0.04);
     transform: translateX(6px);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .job-item.completed { border-left-color: var(--success); }

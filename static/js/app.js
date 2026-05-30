@@ -464,7 +464,7 @@ async function loadRecentJobs() {
             const statusClass = job.status;
             
             html += `
-                <div class="job-item ${statusClass}">
+                <div class="job-item ${statusClass}" onclick="selectJob('${job.job_id}')" title="Click to view details and status of this run">
                     <div class="job-header">
                         <div class="job-title"><i class="fa-solid fa-clipboard-list text-muted"></i> ${job.issue_title || 'Running Analysis...'}</div>
                         <span class="job-status ${statusClass}">${job.status}</span>
@@ -472,7 +472,7 @@ async function loadRecentJobs() {
                     <div class="job-meta">
                         Repository: <strong>${job.owner}/${job.repo}</strong> #${job.issue_number} • Run at ${date}
                     </div>
-                    ${job.pr_url ? `<div class="job-meta" style="margin-top: 0.5rem;"><a href="${job.pr_url}" target="_blank"><i class="fa-solid fa-square-arrow-up-right"></i> View Draft PR</a></div>` : ''}
+                    ${job.pr_url ? `<div class="job-meta" style="margin-top: 0.5rem;" onclick="event.stopPropagation();"><a href="${job.pr_url}" target="_blank"><i class="fa-solid fa-square-arrow-up-right"></i> View Draft PR</a></div>` : ''}
                 </div>
             `;
         });
@@ -484,3 +484,55 @@ async function loadRecentJobs() {
         console.error('Failed to load past jobs list:', error);
     }
 }
+
+// Select a job to load into tracking interface
+async function selectJob(jobId) {
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+    
+    currentJobId = jobId;
+    
+    try {
+        const response = await fetch(`/api/status/${jobId}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to retrieve job details');
+        }
+        
+        // Ensure status section terminal is visible
+        document.getElementById('statusSection').style.display = 'block';
+        document.getElementById('jobId').textContent = `Job: ${currentJobId.slice(-15)}`;
+        
+        // Reset outcomes
+        document.getElementById('resultContainer').style.display = 'none';
+        document.getElementById('successResult').style.display = 'none';
+        document.getElementById('errorResult').style.display = 'none';
+        
+        updateJobStatusUI(data);
+        
+        // If the job is still active (queued/running), restart the polling loop
+        if (data.status === 'queued' || data.status === 'running') {
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('submitBtn').disabled = true;
+            document.querySelector('.btn-text').style.display = 'none';
+            document.querySelector('.btn-loader').style.display = 'inline-flex';
+            
+            pollInterval = setInterval(pollStatus, 2500);
+        } else {
+            document.getElementById('resetBtn').style.display = 'inline-flex';
+            document.getElementById('submitBtn').disabled = false;
+            document.querySelector('.btn-text').style.display = 'inline-flex';
+            document.querySelector('.btn-loader').style.display = 'none';
+        }
+        
+        // Smoothly scroll down to terminal progress box
+        document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        alert(`Failed to load job details: ${error.message}`);
+    }
+}
+
