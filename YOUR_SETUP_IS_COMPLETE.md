@@ -3,8 +3,8 @@
 ## ✅ What's Been Configured
 
 ### 1. API Keys - DONE ✓
-- ✅ GitHub Token: `github_pat_11BV4OH5I...` (configured)
-- ✅ Gemini API Key: `AIzaSyCebY-W_oRGps1fKSqAWJi5HWD9OAe4uYY` (configured)
+- ✅ GitHub Token: `YOUR_GITHUB_TOKEN` (configured)
+- ✅ Gemini API Key: `YOUR_GEMINI_API_KEY` (configured)
 
 ### 2. Installation - DONE ✓
 - ✅ Virtual environment created
