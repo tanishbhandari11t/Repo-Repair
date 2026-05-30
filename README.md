@@ -10,6 +10,15 @@ RepoRepair employs a coordinated team of specialized AI agents built on top of *
 
 ![RepoRepair Architecture Flowchart](static/images/architecture_flowchart.png)
 
+## 🛠️ Tech Stack
+
+- **Backend Architecture**: FastAPI (High-performance API layer)
+- **Frontend Dashboard**: Next.js (React Framework) with Tailwind CSS
+- **AI Agent Framework**: LangGraph (Multi-agent cyclical reasoning)
+- **Supported Models**: Gemini, Anthropic Claude, OpenAI, Groq
+- **Execution Sandbox**: Docker SDK (Isolated test runs)
+- **Version Control**: GitPython & PyGithub
+
 ### 🤖 Meet the Agents
 1. **The Planner Agent (`agents/planner.py`)**  
    Analyzes the GitHub issue title and description, establishes an engineering fix strategy, and generates a series of semantic and keyword search queries targeted at the bug.

@@ -56,6 +56,14 @@ class ValidatorAgent:
             state.test_result = result
             state.validation_passed = result.success
             
+            # Store reasoning for UI
+            state.reasoning["validator"] = {
+                "success": result.success,
+                "duration": result.duration,
+                "exit_code": result.exit_code,
+                "output": result.output[:1000] if result.output else "No output"
+            }
+            
             if result.success:
                 logger.info(f"Tests passed in {result.duration:.2f}s")
             else:

@@ -78,14 +78,37 @@ class Orchestrator:
         workflow.set_entry_point("plan")
         
         workflow.add_edge("plan", "search")
-        workflow.add_edge("search", "code")
+        
+        def _check_search(state: AgentState):
+            if not state.relevant_files:
+                return "plan"
+            return "code"
+            
+        workflow.add_conditional_edges(
+            "search",
+            _check_search,
+            {
+                "plan": "plan",
+                "code": "code"
+            }
+        )
+        
         workflow.add_edge("code", "validate")
         
+        def _check_validate(state: AgentState):
+            if self.validator and self.validator.should_retry(state):
+                if state.retry_count % 2 == 1:
+                    # Every other retry, try finding new files
+                    return "search"
+                return "code"
+            return "finalize"
+            
         workflow.add_conditional_edges(
             "validate",
-            self._should_retry,
+            _check_validate,
             {
-                "retry": "code",
+                "search": "search",
+                "code": "code",
                 "finalize": "finalize",
             }
         )
@@ -142,6 +165,7 @@ class Orchestrator:
         repo_path: Path,
         skip_tests: bool = False,
         dry_run: bool = False,
+        progress_callback = None,
     ) -> WorkflowResult:
         """
         Run the complete workflow.
@@ -154,6 +178,7 @@ class Orchestrator:
             repo_path: Path to cloned repository
             skip_tests: Skip test execution
             dry_run: Don't create PR
+            progress_callback: Callback function taking (node_name, state)
             
         Returns:
             WorkflowResult with outcome
@@ -169,11 +194,16 @@ class Orchestrator:
                 repo_path=str(repo_path),
             )
             
-            final_dict = self.graph.invoke(initial_state)
-            if isinstance(final_dict, dict):
-                final_state = AgentState(**final_dict)
-            else:
-                final_state = final_dict
+            final_state = initial_state
+            for output in self.graph.stream(initial_state):
+                for node_name, state_update in output.items():
+                    if isinstance(state_update, dict):
+                        final_state = AgentState(**state_update)
+                    else:
+                        final_state = state_update
+                    
+                    if progress_callback:
+                        progress_callback(node_name, final_state)
             
             if final_state.error:
                 logger.error(f"Workflow failed: {final_state.error}")
@@ -234,6 +264,7 @@ class Orchestrator:
                     branch_name=final_state.branch_name,
                     files_changed=changed_files,
                     pr_url=pr_url,
+                    reasoning=final_state.reasoning,
                 )
             else:
                 logger.info("Dry run - skipping PR creation")
@@ -241,6 +272,7 @@ class Orchestrator:
                     success=True,
                     branch_name=final_state.branch_name,
                     files_changed=changed_files,
+                    reasoning=final_state.reasoning,
                 )
             
         except Exception as e:

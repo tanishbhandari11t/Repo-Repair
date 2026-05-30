@@ -221,6 +221,19 @@ Generate code changes to fix this issue."""),
             state.changes = changes
             state.branch_name = branch_name
             
+            # Store reasoning for UI
+            state.reasoning["coder"] = {
+                "branch_name": branch_name,
+                "changes": [
+                    {
+                        "file": c.file_path,
+                        "explanation": c.explanation,
+                        "lines_changed": len(c.new_content.splitlines()) - len(c.original_content.splitlines())
+                    }
+                    for c in changes
+                ]
+            }
+            
             logger.info(f"Generated {len(changes)} code changes on branch {branch_name}")
             
             return state

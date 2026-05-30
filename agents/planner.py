@@ -157,6 +157,13 @@ Create a fix strategy and search queries."""),
             state.strategy = strategy
             state.search_queries = search_queries
             
+            # Store reasoning for UI
+            state.reasoning["planner"] = {
+                "strategy": strategy,
+                "search_queries": search_queries,
+                "raw_response": content
+            }
+            
             logger.info(f"Strategy created with {len(search_queries)} search queries")
             logger.debug(f"Strategy: {strategy}")
             

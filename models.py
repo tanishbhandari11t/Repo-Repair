@@ -57,10 +57,13 @@ class WorkflowResult:
     files_changed: list[str] = None
     pr_url: Optional[str] = None
     error: Optional[str] = None
+    reasoning: dict = None
     
     def __post_init__(self):
         if self.files_changed is None:
             self.files_changed = []
+        if self.reasoning is None:
+            self.reasoning = {}
 
 
 @dataclass
@@ -92,6 +95,13 @@ class AgentState:
     pr_url: Optional[str] = None
     error: Optional[str] = None
     
+    # Reasoning logs for UI
+    reasoning: dict = None
+    
     # Retry tracking
     retry_count: int = 0
     max_retries: int = 3
+    
+    def __post_init__(self):
+        if self.reasoning is None:
+            self.reasoning = {}

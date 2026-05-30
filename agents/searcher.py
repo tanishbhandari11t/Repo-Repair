@@ -94,6 +94,12 @@ class SearcherAgent:
             
             state.relevant_files = sorted_results
             
+            # Store reasoning for UI
+            state.reasoning["searcher"] = {
+                "files_found": [r.file_path for r in sorted_results],
+                "scores": [r.relevance_score for r in sorted_results]
+            }
+            
             logger.info(f"Found {len(sorted_results)} relevant files")
             for result in sorted_results[:3]:
                 logger.debug(f"  - {result.file_path} (score: {result.relevance_score:.3f})")
