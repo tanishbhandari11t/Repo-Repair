@@ -30,6 +30,7 @@ CRITICAL RULES:
 - Ensure backwards compatibility
 - VERY IMPORTANT: The code in the ORIGINAL block MUST EXACTLY match the existing code in the file, including all whitespace and indentation!
 - NEVER truncate the NEW block. Write out all the code you want to replace the ORIGINAL block with.
+- For Markdown (.md) or configuration files, if you want to rewrite the entire file, leave the ORIGINAL block completely empty and put the full new content in the NEW block.
 
 Output format for EACH file to modify:
 FILE: <file_path>
@@ -203,9 +204,10 @@ Generate code changes to fix this issue."""),
                         self.git_tool.write_file(Path(state.repo_path), change.file_path, updated_content)
                         logger.info(f"Successfully applied stripped patch to {change.file_path}")
                     else:
-                        # Fallback: if we can't find original, only overwrite if orig is empty or file is tiny
-                        if not orig.strip() or len(file_content) < 200:
-                            logger.warning(f"Original block empty or file tiny for {change.file_path}. Falling back to overwrite.")
+                        is_md = change.file_path.lower().endswith('.md')
+                        # Fallback: if we can't find original, only overwrite if orig is empty, file is tiny, or it is a markdown file
+                        if not orig.strip() or len(file_content) < 200 or is_md:
+                            logger.warning(f"Original block empty, file tiny, or is markdown for {change.file_path}. Falling back to overwrite.")
                             self.git_tool.write_file(Path(state.repo_path), change.file_path, new_val)
                         else:
                             logger.error(f"Failed to apply patch to {change.file_path}: ORIGINAL block not found in file.")
