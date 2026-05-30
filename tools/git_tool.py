@@ -83,8 +83,32 @@ class GitTool:
             return repo_path
             
         except GitCommandError as e:
-            logger.error(f"Failed to clone repository: {e}")
-            raise
+            err_msg = str(e)
+            if "Clone succeeded, but checkout failed" in err_msg or "unable to checkout working tree" in err_msg:
+                logger.warning("Windows path checkout limitation detected. Initiating sparse-checkout self-healing bypass...")
+                try:
+                    repo = Repo(repo_path)
+                    
+                    # 1. Enable sparse checkout
+                    repo.git.config("core.sparseCheckout", "true")
+                    
+                    # 2. Write patterns to .git/info/sparse-checkout
+                    sparse_file = repo_path / ".git" / "info" / "sparse-checkout"
+                    sparse_file.parent.mkdir(parents=True, exist_ok=True)
+                    # We exclude any path containing the offending trailing space target '9fa89f7 '
+                    sparse_file.write_text("/*\n!*9fa89f7*\n", encoding="utf-8")
+                    
+                    # 3. Trigger manual checkout
+                    logger.info("Retrying checkout with sparse exclusions...")
+                    repo.git.checkout("-f", "HEAD")
+                    logger.info("Successfully checked out repository working tree using sparse-checkout bypass!")
+                    return repo_path
+                except Exception as ex:
+                    logger.error(f"Sparse-checkout self-healing fallback failed: {ex}")
+                    raise e
+            else:
+                logger.error(f"Failed to clone repository: {e}")
+                raise
     
     def create_branch(self, repo_path: Path, branch_name: str) -> None:
         """
