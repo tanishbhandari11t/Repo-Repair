@@ -27,14 +27,15 @@ CRITICAL RULES:
 - Only modify files that directly fix the issue
 - Keep changes under 300 lines total
 - Preserve existing code style
-- Add comments only where necessary
 - Ensure backwards compatibility
+- VERY IMPORTANT: The code in the ORIGINAL block MUST EXACTLY match the existing code in the file, including all whitespace and indentation!
+- NEVER truncate the NEW block. Write out all the code you want to replace the ORIGINAL block with.
 
 Output format for EACH file to modify:
 FILE: <file_path>
 EXPLANATION: <one line explaining the change>
 ORIGINAL:
-<original code that needs to be changed>
+<exact original code to be replaced>
 NEW:
 <new code to replace it>
 ---
@@ -187,11 +188,32 @@ Generate code changes to fix this issue."""),
             self.git_tool.create_branch(Path(state.repo_path), branch_name)
             
             for change in changes:
-                self.git_tool.write_file(
-                    Path(state.repo_path),
-                    change.file_path,
-                    change.new_content,
-                )
+                file_content = self.git_tool.get_file_content(Path(state.repo_path), change.file_path)
+                
+                if file_content is not None:
+                    orig = change.original_content
+                    new_val = change.new_content
+                    
+                    if orig and orig in file_content:
+                        updated_content = file_content.replace(orig, new_val)
+                        self.git_tool.write_file(Path(state.repo_path), change.file_path, updated_content)
+                        logger.info(f"Successfully applied exact patch to {change.file_path}")
+                    elif orig and orig.strip() in file_content:
+                        updated_content = file_content.replace(orig.strip(), new_val.strip())
+                        self.git_tool.write_file(Path(state.repo_path), change.file_path, updated_content)
+                        logger.info(f"Successfully applied stripped patch to {change.file_path}")
+                    else:
+                        # Fallback: if we can't find original, only overwrite if orig is empty or file is tiny
+                        if not orig.strip() or len(file_content) < 200:
+                            logger.warning(f"Original block empty or file tiny for {change.file_path}. Falling back to overwrite.")
+                            self.git_tool.write_file(Path(state.repo_path), change.file_path, new_val)
+                        else:
+                            logger.error(f"Failed to apply patch to {change.file_path}: ORIGINAL block not found in file.")
+                            state.error = f"Patch failed for {change.file_path}: ORIGINAL content could not be matched exactly. The agent must rewrite the ORIGINAL block to match the file."
+                            return state
+                else:
+                    # New file
+                    self.git_tool.write_file(Path(state.repo_path), change.file_path, change.new_content)
             
             state.changes = changes
             state.branch_name = branch_name
