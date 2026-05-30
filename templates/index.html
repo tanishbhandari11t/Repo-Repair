@@ -56,11 +56,20 @@
                             <i class="fa-solid fa-circle-question"></i> How do I get a GitHub Token?
                         </summary>
                         <div class="token-guide-content">
+                            <div class="token-alert-warning">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span><strong>CRITICAL:</strong> You <strong>MUST</strong> use a <strong>Classic Personal Access Token</strong> (starts with <code>ghp_</code>). Fine-Grained tokens are restricted by default and will fail with <code>403 Forbidden</code> when attempting to fork public repositories.</span>
+                            </div>
                             <ol>
-                                <li>Go to <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a> (or select Settings &rarr; Developer Settings &rarr; Personal Access Tokens &rarr; Tokens classic).</li>
+                                <li>Go to the <a href="https://github.com/settings/tokens" target="_blank">GitHub Tokens Classic Settings</a> page.</li>
                                 <li>Click <strong>Generate new token</strong> &rarr; select <strong>Generate new token (classic)</strong>.</li>
-                                <li>Name the token and choose scopes: check <strong>repo</strong> (all scopes) and <strong>workflow</strong>.</li>
-                                <li>Scroll to the bottom, click <strong>Generate token</strong>, and copy the token starting with <code>ghp_</code>!</li>
+                                <li>Provide a name (e.g. <code>RepoRepair-Agent</code>) and select the following scopes:
+                                    <ul>
+                                        <li><strong><code>repo</code></strong> (Full control of private and public repositories - <em>Strictly required to fork & push fixes</em>)</li>
+                                        <li><strong><code>workflow</code></strong> (Allow modifying GitHub action workflows if needed)</li>
+                                    </ul>
+                                </li>
+                                <li>Scroll to the bottom, click <strong>Generate token</strong>, and copy the token starting with <code>ghp_</code>. Keep it safe!</li>
                             </ol>
                         </div>
                     </details>

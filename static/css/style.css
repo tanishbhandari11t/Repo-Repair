@@ -944,3 +944,33 @@ body {
     color: var(--accent);
 }
 
+.token-alert-warning {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.85rem;
+    line-height: 1.35;
+    color: var(--text-main);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.05);
+}
+
+.token-alert-warning i {
+    color: #ef4444;
+    font-size: 1rem;
+    margin-top: 0.15rem;
+}
+
+.token-alert-warning span {
+    font-size: 0.8rem;
+}
+
+.token-alert-warning strong {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+
