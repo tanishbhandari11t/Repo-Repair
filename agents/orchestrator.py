@@ -270,19 +270,16 @@ class Orchestrator:
             for change in state.changes:
                 body_parts.append(f"- **{change.file_path}**: {change.explanation}")
         
-        body_parts.extend([
-            "",
-            "## Test Results",
-            "",
-        ])
-        
         if state.test_result:
+            body_parts.extend([
+                "",
+                "## Test Results",
+                "",
+            ])
             if state.test_result.success:
                 body_parts.append(f"✅ All tests passed ({state.test_result.duration:.2f}s)")
             else:
                 body_parts.append("❌ Some tests failed - please review")
-        else:
-            body_parts.append("⚠️ Tests were not run")
         
         body_parts.extend([
             "",
