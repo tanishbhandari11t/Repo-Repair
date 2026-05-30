@@ -182,7 +182,7 @@ class GitTool:
                 logger.warning("No changes to commit")
                 return repo.head.commit.hexsha
             
-            commit = repo.index.commit(message, no_verify=True)
+            commit = repo.index.commit(message, skip_hooks=True)
             logger.info(f"Committed changes: {commit.hexsha[:8]}")
             
             return commit.hexsha
