@@ -346,11 +346,23 @@ Generate code changes to fix this issue."""),
                     break
                 result.append(line)
         
-        code = "\n".join(result).strip()
+        # Don't strip leading/trailing spaces as it breaks indentation matching
+        code = "\n".join(result).strip("\r\n")
         
+        # Remove markdown code block backticks if present
         if code.startswith("```"):
-            code = "\n".join(code.split("\n")[1:])
-        if code.endswith("```"):
-            code = "\n".join(code.split("\n")[:-1])
+            lines = code.split("\n")
+            if len(lines) > 1:
+                code = "\n".join(lines[1:])
+            else:
+                code = ""
         
-        return code.strip()
+        if code.endswith("```"):
+            lines = code.split("\n")
+            if len(lines) > 1:
+                code = "\n".join(lines[:-1])
+            else:
+                code = ""
+                
+        # Only strip newlines again, preserve horizontal whitespace
+        return code.strip("\r\n")
