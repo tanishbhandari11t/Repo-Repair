@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepoRepair — AI GitHub Issue Fix Engine</title>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Background Glow Blobs for Glassmorphism -->
+    <div class="glow-blob glow-1"></div>
+    <div class="glow-blob glow-2"></div>
+
+    <div class="app-layout">
+        <!-- Top Navigation Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="brand">
+                    <div class="logo-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                    <div class="logo-text">
+                        <h1>RepoRepair</h1>
+                        <span class="badge">AI RAG Agent v2.5</span>
+                    </div>
+                </div>
+                
+                <!-- Dynamic GitHub Connection Status Header -->
+                <div class="github-status-indicator" id="headerGitStatus">
+                    <span class="status-dot disconnected"></span>
+                    <span class="status-text">GitHub Account: Not Connected</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Workspace -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Configurations & Inputs -->
+            <section class="config-panel">
+                <!-- 1. GitHub Connection Card -->
+                <div class="glass-card glowing">
+                    <div class="card-header">
+                        <i class="fa-brands fa-github text-primary"></i>
+                        <h2>Connect GitHub</h2>
+                    </div>
+                    <p class="card-desc">Provide your GitHub Personal Access Token (PAT) to perform clones, push branches, and create draft Pull Requests.</p>
+                    
+                    <details class="token-guide-details">
+                        <summary class="token-guide-summary">
+                            <i class="fa-solid fa-circle-question"></i> How do I get a GitHub Token?
+                        </summary>
+                        <div class="token-guide-content">
+                            <ol>
+                                <li>Go to <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a> (or select Settings &rarr; Developer Settings &rarr; Personal Access Tokens &rarr; Tokens classic).</li>
+                                <li>Click <strong>Generate new token</strong> &rarr; select <strong>Generate new token (classic)</strong>.</li>
+                                <li>Name the token and choose scopes: check <strong>repo</strong> (all scopes) and <strong>workflow</strong>.</li>
+                                <li>Scroll to the bottom, click <strong>Generate token</strong>, and copy the token starting with <code>ghp_</code>!</li>
+                            </ol>
+                        </div>
+                    </details>
+                    
+                    <div class="git-auth-form">
+                        <div class="form-group relative">
+                            <label for="gitToken">Personal Access Token (PAT)</label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-key input-icon"></i>
+                                <input 
+                                    type="password" 
+                                    id="gitToken" 
+                                    placeholder="github_pat_..."
+                                    autocomplete="off"
+                                >
+                                <button type="button" class="btn-toggle-pass" id="togglePass">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="button-row">
+                            <button type="button" class="btn btn-connect" id="btnConnect">
+                                <i class="fa-solid fa-link"></i> Connect Account
+                            </button>
+                            <button type="button" class="btn btn-disconnect" id="btnDisconnect" style="display: none;">
+                                <i class="fa-solid fa-link-slash"></i> Disconnect
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Fix Job Form -->
+                <form id="fixForm" class="fix-form">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-circle-nodes text-accent"></i>
+                            <h2>Issue Fix Settings</h2>
+                        </div>
+                        
+                        <!-- Issue URL input -->
+                        <div class="form-group">
+                            <label for="issueUrl">GitHub Issue URL</label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-link input-icon"></i>
+                                <input 
+                                    type="text" 
+                                    id="issueUrl" 
+                                    placeholder="https://github.com/owner/repo/issues/123"
+                                    required
+                                >
+                            </div>
+                            <small class="helper-text">E.g., https://github.com/octocat/Hello-World/issues/1</small>
+                        </div>
+
+                        <!-- Segment Selector for Run Mode -->
+                        <div class="form-group">
+                            <label>Execution Mode</label>
+                            <div class="segment-control">
+                                <label class="segment-option">
+                                    <input type="radio" name="runMode" id="modeDry" value="dry" checked>
+                                    <span class="segment-label">
+                                        <i class="fa-solid fa-flask"></i> Dry Run
+                                    </span>
+                                </label>
+                                <label class="segment-option">
+                                    <input type="radio" name="runMode" id="modeFull" value="full">
+                                    <span class="segment-label">
+                                        <i class="fa-solid fa-code-pull-request"></i> Create Draft PR
+                                    </span>
+                                </label>
+                            </div>
+                            <small class="helper-text">Dry Run generates the fix locally without writing to remote git repository.</small>
+                        </div>
+
+                        <!-- Segment Selector for Testing -->
+                        <div class="form-group">
+                            <label>Isolated Docker Validation</label>
+                            <div class="segment-control">
+                                <label class="segment-option">
+                                    <input type="radio" name="validationMode" id="valSkip" value="skip" checked>
+                                    <span class="segment-label">
+                                        <i class="fa-solid fa-bolt"></i> Fast Mode (Skip Tests)
+                                    </span>
+                                </label>
+                                <label class="segment-option">
+                                    <input type="radio" name="validationMode" id="valDocker" value="docker">
+                                    <span class="segment-label">
+                                        <i class="fa-solid fa-docker"></i> Safe Mode (Docker Tests)
+                                    </span>
+                                </label>
+                            </div>
+                            <small class="helper-text">Docker testing ensures your fix compiles and passes all unit tests automatically.</small>
+                        </div>
+
+                        <!-- Trigger Button -->
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <span class="btn-text"><i class="fa-solid fa-play"></i> Initialize Fix Engine</span>
+                            <span class="btn-loader" style="display: none;">
+                                <i class="fa-solid fa-circle-notch fa-spin"></i> Triggering RAG Agents...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Right Panel: Live Execution Logs & Workspace Outcome -->
+            <section class="workspace-panel">
+                <!-- 1. Live Terminal Progress Box -->
+                <div class="glass-card terminal-card" id="statusSection" style="display: none;">
+                    <div class="terminal-header">
+                        <div class="window-buttons">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="terminal-title" id="jobId">Job: queued</div>
+                        <div class="status-badge" id="statusBadge">Queued</div>
+                    </div>
+                    
+                    <div class="terminal-body">
+                        <!-- Issue Meta Info Header inside terminal -->
+                        <div class="terminal-issue-header" id="issueInfo" style="display: none;">
+                            <div class="meta-label">TARGET CONTEXT</div>
+                            <h3 id="issueTitle">Loading issue...</h3>
+                            <div class="meta-repo" id="issueRepo">Loading...</div>
+                        </div>
+
+                        <!-- Visual RAG Pipeline Map -->
+                        <div class="rag-pipeline-map">
+                            <div class="pipeline-step active" id="step_plan">
+                                <div class="step-dot"><i class="fa-solid fa-brain"></i></div>
+                                <span class="step-name">Plan</span>
+                            </div>
+                            <div class="pipeline-connector"></div>
+                            <div class="pipeline-step" id="step_search">
+                                <div class="step-dot"><i class="fa-solid fa-magnifying-glass"></i></div>
+                                <span class="step-name">Search</span>
+                            </div>
+                            <div class="pipeline-connector"></div>
+                            <div class="pipeline-step" id="step_code">
+                                <div class="step-dot"><i class="fa-solid fa-terminal"></i></div>
+                                <span class="step-name">Code</span>
+                            </div>
+                            <div class="pipeline-connector"></div>
+                            <div class="pipeline-step" id="step_validate">
+                                <div class="step-dot"><i class="fa-solid fa-shield-halved"></i></div>
+                                <span class="step-name">Validate</span>
+                            </div>
+                            <div class="pipeline-connector"></div>
+                            <div class="pipeline-step" id="step_finalize">
+                                <div class="step-dot"><i class="fa-solid fa-code-commit"></i></div>
+                                <span class="step-name">Finalize</span>
+                            </div>
+                        </div>
+
+                        <!-- Log Streaming Text -->
+                        <div class="log-stream-box">
+                            <div class="log-stream-header"><i class="fa-solid fa-message-captions"></i> AGENT STREAMING LOGS</div>
+                            <div class="progress-text" id="progressText">Agent pipeline queued...</div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+
+                        <!-- Execution Outcome Container -->
+                        <div class="result-container" id="resultContainer" style="display: none;">
+                            <!-- Success Result Panel -->
+                            <div class="result success-panel" id="successResult" style="display: none;">
+                                <div class="outcome-icon"><i class="fa-solid fa-circle-check"></i></div>
+                                <h3>Fix Generated Successfully!</h3>
+                                <div class="result-details" id="successDetails"></div>
+                            </div>
+
+                            <!-- Error Result Panel -->
+                            <div class="result error-panel" id="errorResult" style="display: none;">
+                                <div class="outcome-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+                                <h3>Workflow Terminated</h3>
+                                <div class="result-details" id="errorDetails"></div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-secondary" id="resetBtn" style="display: none;">
+                            <i class="fa-solid fa-rotate-left"></i> Fix Another Issue
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Recent Jobs List -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-clock-rotate-left text-primary"></i>
+                        <h2>Execution History</h2>
+                    </div>
+                    <div id="jobsList">
+                        <p class="empty-state">No jobs run yet. Initialize the fix engine to start auditing repositories!</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>RepoRepair Fix Engine • Architected using Python, LangGraph, and Gemini AI</p>
+            <p class="footer-disclaimer">🔧 Draft Pull Requests are created for safety, ensuring manual review prior to repository merges.</p>
+        </footer>
+    </div>
+
+    <!-- Core Web Application Handler -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
