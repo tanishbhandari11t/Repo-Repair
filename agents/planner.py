@@ -2,11 +2,12 @@
 
 import logging
 from typing import Optional
+import time
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
-from models import Issue, AgentState
+from models import Issue, AgentState, ReasoningStep
 
 logger = logging.getLogger(__name__)
 
@@ -157,12 +158,16 @@ Create a fix strategy and search queries."""),
             state.strategy = strategy
             state.search_queries = search_queries
             
-            # Store reasoning for UI
-            state.reasoning["planner"] = {
-                "strategy": strategy,
-                "search_queries": search_queries,
-                "raw_response": content
-            }
+            state.reasoning_trace.append(ReasoningStep(
+                agent="Planner",
+                message=f"Formulated strategy with {len(search_queries)} search queries.",
+                timestamp=time.time()
+            ))
+            state.reasoning_trace.append(ReasoningStep(
+                agent="Planner",
+                message=f"Strategy: {strategy}",
+                timestamp=time.time()
+            ))
             
             logger.info(f"Strategy created with {len(search_queries)} search queries")
             logger.debug(f"Strategy: {strategy}")

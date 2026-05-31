@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import Optional, Literal, Any, Callable
 
 from langgraph.graph import StateGraph, END
 
@@ -78,37 +78,24 @@ class Orchestrator:
         workflow.set_entry_point("plan")
         
         workflow.add_edge("plan", "search")
+        workflow.add_edge("search", "code")
         
-        def _check_search(state: AgentState):
-            if not state.relevant_files:
-                return "plan"
-            return "code"
-            
         workflow.add_conditional_edges(
-            "search",
-            _check_search,
+            "code",
+            self._coder_decision,
             {
-                "plan": "plan",
-                "code": "code"
+                "search": "search",
+                "validate": "validate",
+                "finalize": "finalize"
             }
         )
         
-        workflow.add_edge("code", "validate")
-        
-        def _check_validate(state: AgentState):
-            if self.validator and self.validator.should_retry(state):
-                if state.retry_count % 2 == 1:
-                    # Every other retry, try finding new files
-                    return "search"
-                return "code"
-            return "finalize"
-            
         workflow.add_conditional_edges(
             "validate",
-            _check_validate,
+            self._should_retry,
             {
-                "search": "search",
-                "code": "code",
+                "retry_code": "code",
+                "retry_plan": "plan",
                 "finalize": "finalize",
             }
         )
@@ -149,11 +136,22 @@ class Orchestrator:
         logger.info("=== FINALIZATION PHASE ===")
         return state
     
-    def _should_retry(self, state: AgentState) -> Literal["retry", "finalize"]:
+    def _coder_decision(self, state: AgentState) -> Literal["search", "validate", "finalize"]:
+        """Decide next step after coding."""
+        if state.error:
+            if "context" in state.error.lower() or "no_changes" in state.error.lower():
+                state.error = None
+                return "search"
+            return "finalize"
+        return "validate"
+        
+    def _should_retry(self, state: AgentState) -> Literal["retry_code", "retry_plan", "finalize"]:
         """Decide whether to retry code generation."""
         if self.validator and self.validator.should_retry(state):
             logger.info("Retrying code generation...")
-            return "retry"
+            if state.retry_count > 1:
+                return "retry_plan"
+            return "retry_code"
         return "finalize"
     
     def run(
@@ -165,7 +163,6 @@ class Orchestrator:
         repo_path: Path,
         skip_tests: bool = False,
         dry_run: bool = False,
-        progress_callback = None,
     ) -> WorkflowResult:
         """
         Run the complete workflow.
@@ -178,7 +175,6 @@ class Orchestrator:
             repo_path: Path to cloned repository
             skip_tests: Skip test execution
             dry_run: Don't create PR
-            progress_callback: Callback function taking (node_name, state)
             
         Returns:
             WorkflowResult with outcome
@@ -194,22 +190,24 @@ class Orchestrator:
                 repo_path=str(repo_path),
             )
             
-            final_state = initial_state
-            for output in self.graph.stream(initial_state):
-                for node_name, state_update in output.items():
-                    if isinstance(state_update, dict):
-                        final_state = AgentState(**state_update)
-                    else:
-                        final_state = state_update
-                    
-                    if progress_callback:
-                        progress_callback(node_name, final_state)
+            final_dict = self.graph.invoke(initial_state)
+            if isinstance(final_dict, dict):
+                final_state = AgentState(**final_dict)
+            else:
+                final_state = final_dict
+            
+            
+            trace_dicts = [
+                {"agent": step.agent, "message": step.message, "timestamp": step.timestamp}
+                for step in (final_state.reasoning_trace or [])
+            ]
             
             if final_state.error:
                 logger.error(f"Workflow failed: {final_state.error}")
                 return WorkflowResult(
                     success=False,
                     error=final_state.error,
+                    reasoning_trace=trace_dicts,
                 )
             
             if not final_state.validation_passed:
@@ -217,6 +215,7 @@ class Orchestrator:
                 return WorkflowResult(
                     success=False,
                     error="Code changes failed validation tests",
+                    reasoning_trace=trace_dicts,
                 )
             
             commit_message = f"AI Fix: Resolve issue #{issue_number}\n\n{issue.title}"
@@ -264,7 +263,7 @@ class Orchestrator:
                     branch_name=final_state.branch_name,
                     files_changed=changed_files,
                     pr_url=pr_url,
-                    reasoning=final_state.reasoning,
+                    reasoning_trace=trace_dicts,
                 )
             else:
                 logger.info("Dry run - skipping PR creation")
@@ -272,7 +271,7 @@ class Orchestrator:
                     success=True,
                     branch_name=final_state.branch_name,
                     files_changed=changed_files,
-                    reasoning=final_state.reasoning,
+                    reasoning_trace=trace_dicts,
                 )
             
         except Exception as e:

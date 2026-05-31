@@ -1,132 +1,149 @@
-"""SWE-bench Evaluation Runner for RepoRepair."""
-
+import os
 import json
-import logging
-import argparse
 import time
+import logging
 from pathlib import Path
+from dataclasses import dataclass
+from typing import List
 
 from config import get_settings
 from tools.github_tool import GitHubTool
 from tools.git_tool import GitTool
 from agents.orchestrator import Orchestrator
-from models import Issue
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Benchmark")
 
-def load_dataset(dataset_path: str):
-    """Load SWE-bench dataset (JSON format)."""
-    with open(dataset_path, 'r') as f:
-        return json.load(f)
 
-def run_evaluation(dataset_path: str, limit: int = 10, dry_run: bool = True):
-    """Run agent against SWE-bench dataset."""
-    logger.info(f"Starting SWE-bench evaluation on {dataset_path} (Limit: {limit})")
+@dataclass
+class BenchmarkIssue:
+    owner: str
+    repo: str
+    issue_number: int
+
+
+def run_benchmark(issues_file: str):
+    """Run SWE-Bench style benchmark."""
+    logger.info(f"Loading issues from {issues_file}")
+    
+    with open(issues_file, 'r') as f:
+        data = json.load(f)
+        
+    issues = [
+        BenchmarkIssue(
+            owner=item['owner'],
+            repo=item['repo'],
+            issue_number=item['issue_number']
+        )
+        for item in data
+    ]
     
     settings = get_settings()
-    if not settings.github_token:
-        logger.error("GITHUB_TOKEN not found in environment.")
-        return
-        
     github_tool = GitHubTool(settings.github_token)
     git_tool = GitTool(settings.workspace_dir)
-    orchestrator = Orchestrator(github_tool, git_tool, settings)
     
-    dataset = load_dataset(dataset_path)
+    orchestrator = Orchestrator(
+        github_tool=github_tool,
+        git_tool=git_tool,
+        settings=settings
+    )
     
-    results = {
-        "total": min(len(dataset), limit),
-        "resolved": 0,
-        "failed": 0,
-        "success_rate": 0.0,
-        "details": []
-    }
+    total = len(issues)
+    resolved = 0
+    start_time = time.time()
     
-    count = 0
-    for item in dataset:
-        if count >= limit:
-            break
-            
-        instance_id = item.get("instance_id", f"task_{count}")
-        repo = item.get("repo", "unknown/repo")
-        problem_statement = item.get("problem_statement", "")
-        
-        logger.info(f"\n[{count+1}/{results['total']}] Evaluating instance: {instance_id}")
-        
-        # Mocking an Issue object since SWE-bench doesn't use live GitHub issues
-        issue = Issue(
-            number=9999,
-            title=f"SWE-bench: {instance_id}",
-            body=problem_statement,
-            state="open",
-            labels=[],
-            author="swe-bench",
-            url=f"https://github.com/{repo}/issues/9999"
-        )
-        
-        owner, repo_name = repo.split("/") if "/" in repo else ("unknown", repo)
+    logger.info(f"Starting benchmark for {total} issues...")
+    
+    results = []
+    
+    for i, issue_data in enumerate(issues, 1):
+        logger.info(f"[{i}/{total}] Evaluating {issue_data.owner}/{issue_data.repo}#{issue_data.issue_number}")
         
         try:
-            # Note: For real SWE-bench, we'd need to checkout the base_commit. 
-            # This requires adding base_commit checkout to git_tool, but we simulate for the portfolio MVP.
-            repo_path = git_tool.clone_repository(owner, repo_name, settings.github_token)
+            # Fetch issue details
+            issue = github_tool.get_issue(
+                issue_data.owner, 
+                issue_data.repo, 
+                issue_data.issue_number
+            )
             
+            # Clone repo
+            repo_path = git_tool.clone_repository(
+                issue_data.owner, 
+                issue_data.repo, 
+                settings.github_token
+            )
+            
+            # Run engine
             result = orchestrator.run(
-                owner=owner,
-                repo=repo_name,
-                issue_number=issue.number,
+                owner=issue_data.owner,
+                repo=issue_data.repo,
+                issue_number=issue_data.issue_number,
                 issue=issue,
                 repo_path=repo_path,
                 skip_tests=False,
-                dry_run=dry_run
+                dry_run=True,  # Don't create real PRs!
             )
             
-            if result.success and result.validation_passed:
-                results["resolved"] += 1
-                status = "RESOLVED"
+            if result.success:
+                logger.info(f"✅ Resolved {issue_data.owner}/{issue_data.repo}#{issue_data.issue_number}")
+                resolved += 1
             else:
-                results["failed"] += 1
-                status = "FAILED"
-                
-            results["details"].append({
-                "instance_id": instance_id,
-                "status": status,
-                "error": result.error
+                logger.error(f"❌ Failed {issue_data.owner}/{issue_data.repo}#{issue_data.issue_number}: {result.error}")
+            
+            results.append({
+                "owner": issue_data.owner,
+                "repo": issue_data.repo,
+                "issue": issue_data.issue_number,
+                "success": result.success,
+                "error": result.error,
+                "files_changed": result.files_changed
             })
             
         except Exception as e:
-            logger.error(f"Evaluation crashed on {instance_id}: {e}")
-            results["failed"] += 1
-            results["details"].append({
-                "instance_id": instance_id,
-                "status": "CRASHED",
-                "error": str(e)
+            logger.exception(f"Crash evaluating {issue_data.owner}/{issue_data.repo}#{issue_data.issue_number}: {e}")
+            results.append({
+                "owner": issue_data.owner,
+                "repo": issue_data.repo,
+                "issue": issue_data.issue_number,
+                "success": False,
+                "error": f"Crash: {str(e)}"
             })
             
-        count += 1
-        
-    results["success_rate"] = (results["resolved"] / results["total"]) * 100
+    end_time = time.time()
+    duration = end_time - start_time
     
-    logger.info("\n=== EVALUATION RESULTS ===")
-    logger.info(f"Total Evaluated: {results['total']}")
-    logger.info(f"Resolved: {results['resolved']}")
-    logger.info(f"Failed: {results['failed']}")
-    logger.info(f"Success Rate: {results['success_rate']:.1f}%")
+    success_rate = (resolved / total) * 100 if total > 0 else 0
     
-    with open("swe_bench_results.json", "w") as f:
-        json.dump(results, f, indent=4)
-        
-    logger.info("Detailed results saved to swe_bench_results.json")
+    print("\n" + "="*50)
+    print("📊 BENCHMARK RESULTS")
+    print("="*50)
+    print(f"Total Issues : {total}")
+    print(f"Resolved     : {resolved}")
+    print(f"Success Rate : {success_rate:.1f}%")
+    print(f"Duration     : {duration/60:.1f} minutes")
+    print("="*50)
+    
+    with open('benchmark_results.json', 'w') as f:
+        json.dump({
+            "metrics": {
+                "total": total,
+                "resolved": resolved,
+                "success_rate": success_rate,
+                "duration_seconds": duration
+            },
+            "results": results
+        }, f, indent=2)
+    
+    print("Results saved to benchmark_results.json")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run RepoRepair against SWE-bench dataset")
-    parser.add_argument("--dataset", type=str, required=True, help="Path to SWE-bench json dataset")
-    parser.add_argument("--limit", type=int, default=10, help="Max instances to evaluate")
-    parser.add_argument("--live", action="store_true", help="Actually create PRs (turns off dry_run)")
-    args = parser.parse_args()
-    
-    run_evaluation(args.dataset, args.limit, dry_run=not args.live)
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python benchmark.py <issues.json>")
+        sys.exit(1)
+        
+    run_benchmark(sys.argv[1])

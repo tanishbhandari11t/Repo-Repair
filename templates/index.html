@@ -23,11 +23,7 @@
         <header class="app-header">
             <div class="header-content">
                 <div class="brand">
-                    <div class="logo-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-                    <div class="logo-text">
-                        <h1>RepoRepair</h1>
-                        <span class="badge">AI RAG Agent v2.5</span>
-                    </div>
+                    <img src="/static/img/logo.png" alt="RepoRepair Logo" style="height: 140px; width: auto; max-width: none; object-fit: contain; transform: scale(1.3); transform-origin: left center; margin: -30px 0 -30px -10px; filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.4));">
                 </div>
                 
                 <!-- Dynamic GitHub Connection Status Header -->
@@ -253,8 +249,18 @@
                                 <div class="result-details" id="errorDetails"></div>
                             </div>
                         </div>
+                        <!-- Agent Reasoning Trace Viewer -->
+                        <div class="reasoning-container" id="reasoningContainer" style="display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                            <div class="reasoning-header" onclick="document.getElementById('reasoningBody').style.display = document.getElementById('reasoningBody').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                                <h3><i class="fa-solid fa-microchip"></i> View Agent Reasoning Trace</h3>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="reasoning-body" id="reasoningBody" style="display: none; margin-top: 10px; font-family: monospace; font-size: 0.9em; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; max-height: 300px; overflow-y: auto;">
+                                <!-- Traces injected here -->
+                            </div>
+                        </div>
 
-                        <button class="btn btn-secondary" id="resetBtn" style="display: none;">
+                        <button class="btn btn-secondary" id="resetBtn" style="display: none; margin-top: 20px;">
                             <i class="fa-solid fa-rotate-left"></i> Fix Another Issue
                         </button>
                     </div>
@@ -275,8 +281,16 @@
 
         <!-- Footer -->
         <footer class="app-footer">
-            <p>RepoRepair Fix Engine • Architected using Python, LangGraph, and Gemini AI</p>
-            <p class="footer-disclaimer">🔧 Draft Pull Requests are created for safety, ensuring manual review prior to repository merges.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; width: 100%;">
+                <div class="footer-left">
+                    <p>RepoRepair Fix Engine • Architected using Python, LangGraph, and Gemini AI</p>
+                    <p class="footer-disclaimer">🔧 Draft Pull Requests are created for safety, ensuring manual review prior to repository merges.</p>
+                </div>
+                <div class="footer-right" style="text-align: right; opacity: 0.8;">
+                    <p style="font-weight: 600; color: var(--accent);">Made By Tanish 🫡</p>
+                    <p style="font-size: 0.8em; font-style: italic;">(this is still under work)</p>
+                </div>
+            </div>
         </footer>
     </div>
 

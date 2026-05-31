@@ -57,13 +57,23 @@ class WorkflowResult:
     files_changed: list[str] = None
     pr_url: Optional[str] = None
     error: Optional[str] = None
-    reasoning: dict = None
+    
+    # Transparency
+    reasoning_trace: list[dict] = None
     
     def __post_init__(self):
         if self.files_changed is None:
             self.files_changed = []
-        if self.reasoning is None:
-            self.reasoning = {}
+        if self.reasoning_trace is None:
+            self.reasoning_trace = []
+
+@dataclass
+class ReasoningStep:
+    """A reasoning step taken by an agent."""
+    
+    agent: str
+    message: str
+    timestamp: float
 
 
 @dataclass
@@ -75,6 +85,13 @@ class AgentState:
     issue_number: int
     issue: Issue
     repo_path: str
+    
+    # Transparency / Viewer
+    reasoning_trace: list[ReasoningStep] = None
+    
+    def __post_init__(self):
+        if self.reasoning_trace is None:
+            self.reasoning_trace = []
     
     # Planner outputs
     strategy: Optional[str] = None
@@ -95,13 +112,6 @@ class AgentState:
     pr_url: Optional[str] = None
     error: Optional[str] = None
     
-    # Reasoning logs for UI
-    reasoning: dict = None
-    
     # Retry tracking
     retry_count: int = 0
     max_retries: int = 3
-    
-    def __post_init__(self):
-        if self.reasoning is None:
-            self.reasoning = {}

@@ -248,6 +248,16 @@ class GitTool:
         except GitCommandError as e:
             logger.error(f"Failed to get diff: {e}")
             return ""
+            
+    def get_commit_diff(self, repo_path: Path, commit_ref: str = "HEAD") -> str:
+        """Get the diff for a specific commit (e.g. HEAD vs HEAD~1)."""
+        try:
+            repo = Repo(repo_path)
+            diff = repo.git.show(commit_ref, "--format=", "--patch")
+            return diff
+        except Exception as e:
+            logger.error(f"Failed to get commit diff: {e}")
+            return ""
     
     def get_changed_files(self, repo_path: Path) -> list[str]:
         """

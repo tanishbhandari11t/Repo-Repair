@@ -7,7 +7,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
 from tools.git_tool import GitTool
-from models import AgentState, CodeChange
+from models import AgentState, CodeChange, ReasoningStep
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +176,13 @@ Generate code changes to fix this issue."""),
             content = response.content
             
             if "NO_CHANGES_NEEDED" in content:
-                logger.warning("No changes generated")
-                state.error = "Agent determined no changes are needed"
+                logger.info("Agent determined no changes are needed")
+                state.changes = []
+                state.reasoning_trace.append(ReasoningStep(
+                    agent="Coder",
+                    message="Agent determined no changes are needed.",
+                    timestamp=time.time()
+                ))
                 return state
             
             changes = self._parse_changes(content)
@@ -187,6 +193,13 @@ Generate code changes to fix this issue."""),
                 return state
             
             branch_name = f"ai-fix/issue-{state.issue_number}"
+            
+            state.reasoning_trace.append(ReasoningStep(
+                agent="Coder",
+                message=f"Generated {len(changes)} code changes.\n" + "\n".join([f"- Modified {c.file_path}" for c in changes]),
+                timestamp=time.time()
+            ))
+            
             self.git_tool.create_branch(Path(state.repo_path), branch_name)
             
             for change in changes:
@@ -220,19 +233,6 @@ Generate code changes to fix this issue."""),
             
             state.changes = changes
             state.branch_name = branch_name
-            
-            # Store reasoning for UI
-            state.reasoning["coder"] = {
-                "branch_name": branch_name,
-                "changes": [
-                    {
-                        "file": c.file_path,
-                        "explanation": c.explanation,
-                        "lines_changed": len(c.new_content.splitlines()) - len(c.original_content.splitlines())
-                    }
-                    for c in changes
-                ]
-            }
             
             logger.info(f"Generated {len(changes)} code changes on branch {branch_name}")
             

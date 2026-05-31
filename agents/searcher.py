@@ -4,7 +4,8 @@ import logging
 from pathlib import Path
 
 from tools.search_tool import SearchTool
-from models import AgentState, SearchResult
+from models import AgentState, SearchResult, ReasoningStep
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -94,11 +95,11 @@ class SearcherAgent:
             
             state.relevant_files = sorted_results
             
-            # Store reasoning for UI
-            state.reasoning["searcher"] = {
-                "files_found": [r.file_path for r in sorted_results],
-                "scores": [r.relevance_score for r in sorted_results]
-            }
+            state.reasoning_trace.append(ReasoningStep(
+                agent="Searcher",
+                message=f"Found {len(sorted_results)} relevant files:\n" + "\n".join([f"- {r.file_path} (score: {r.relevance_score:.3f})" for r in sorted_results]),
+                timestamp=time.time()
+            ))
             
             logger.info(f"Found {len(sorted_results)} relevant files")
             for result in sorted_results[:3]:

@@ -4,7 +4,8 @@ import logging
 from pathlib import Path
 
 from tools.docker_tool import DockerTool
-from models import AgentState
+from models import AgentState, ReasoningStep
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +41,13 @@ class ValidatorAgent:
             state.validation_passed = True
             return state
         
+        if state.changes is not None and len(state.changes) == 0:
+            logger.info("No changes to validate (empty changes list)")
+            state.validation_passed = True
+            return state
+            
         if not state.changes:
-            logger.error("No changes to validate")
+            logger.error("No changes available to validate")
             state.error = "No changes available for validation"
             return state
         
@@ -56,17 +62,19 @@ class ValidatorAgent:
             state.test_result = result
             state.validation_passed = result.success
             
-            # Store reasoning for UI
-            state.reasoning["validator"] = {
-                "success": result.success,
-                "duration": result.duration,
-                "exit_code": result.exit_code,
-                "output": result.output[:1000] if result.output else "No output"
-            }
-            
             if result.success:
+                state.reasoning_trace.append(ReasoningStep(
+                    agent="Validator",
+                    message=f"All tests passed in {result.duration:.2f}s.",
+                    timestamp=time.time()
+                ))
                 logger.info(f"Tests passed in {result.duration:.2f}s")
             else:
+                state.reasoning_trace.append(ReasoningStep(
+                    agent="Validator",
+                    message=f"Tests failed: {result.output[:200]}...",
+                    timestamp=time.time()
+                ))
                 logger.error(f"Tests failed: {result.output[:200]}")
                 
                 if state.retry_count < state.max_retries:

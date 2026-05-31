@@ -341,6 +341,30 @@ function updateJobStatusUI(data) {
         parsePipelineProgress(data.progress, data.status);
     }
     
+    // 3.5 Render Reasoning Trace
+    if (data.reasoning_trace && data.reasoning_trace.length > 0) {
+        document.getElementById('reasoningContainer').style.display = 'block';
+        const reasoningBody = document.getElementById('reasoningBody');
+        
+        let html = '';
+        data.reasoning_trace.forEach(step => {
+            const timeStr = new Date(step.timestamp * 1000).toLocaleTimeString();
+            let color = '#ccc';
+            if (step.agent === 'Planner') color = '#a78bfa';
+            if (step.agent === 'Searcher') color = '#38bdf8';
+            if (step.agent === 'Coder') color = '#fbbf24';
+            if (step.agent === 'Validator') color = '#10b981';
+            
+            html += `<div style="margin-bottom: 8px;">
+                <span style="color: #64748b;">[${timeStr}]</span> 
+                <strong style="color: ${color};">${step.agent}:</strong> 
+                <span style="color: #e2e8f0; white-space: pre-wrap;">${step.message}</span>
+            </div>`;
+        });
+        
+        reasoningBody.innerHTML = html;
+    }
+    
     // 4. Render Outcomes
     if (data.status === 'completed') {
         showSuccessOutcome(data);

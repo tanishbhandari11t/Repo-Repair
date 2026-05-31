@@ -99,10 +99,12 @@ def run_reporepair_task(job_id: str, issue_url: str, skip_tests: bool, dry_run: 
             jobs[job_id]['pr_url'] = result.pr_url
             jobs[job_id]['branch_name'] = result.branch_name
             jobs[job_id]['files_changed'] = result.files_changed
+            jobs[job_id]['reasoning_trace'] = result.reasoning_trace
             jobs[job_id]['dry_run'] = dry_run
         else:
             jobs[job_id]['status'] = 'error'
             jobs[job_id]['error'] = result.error
+            jobs[job_id]['reasoning_trace'] = result.reasoning_trace
             
     except Exception as e:
         logger.exception(f"Job {job_id} failed")
