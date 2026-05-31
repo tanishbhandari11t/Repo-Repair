@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     )
 
     # GitHub Configuration
-    github_token: str
+    github_token: Optional[str] = None
     
     # Gemini Configuration
     gemini_api_key: Optional[str] = None
