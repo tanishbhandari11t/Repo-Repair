@@ -94,7 +94,7 @@ Launch the beautiful, glassmorphic dark-mode dashboard locally:
 ```bash
 python web_app.py
 ```
-Open **[http://localhost:5000](http://localhost:5000)** in your browser to paste issue URLs, connect tokens, and track agent progress live.
+Open in your browser to paste issue URLs, connect tokens, and track agent progress live.
 
 ### Command Line Interface
 ```bash
