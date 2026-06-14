@@ -1,11 +1,4 @@
----
-title: RepoRepair
-emoji: 🔧
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
----
+
 # RepoRepair 🔧
 
 > **RepoRepair** is a state-of-the-art, multi-agent AI RAG system that autonomously analyzes GitHub issues, implements precise codebase fixes, validates changes via testing, and submits tested, cross-repository draft Pull Requests—all without ever auto-merging.
